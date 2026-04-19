@@ -1,0 +1,58 @@
+services:
+  # ─── PostgreSQL + PostGIS ──────────────────────────────────────────────────────
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: drone_postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dronedb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dronedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Express Telemetry API ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: drone_api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: dronedb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      API_PORT: 3001
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── Leaflet Map UI (Nginx) ───────────────────────────────────────────────────
+  ui:
+    image: nginx:alpine
+    container_name: drone_ui
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src/ui:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+    driver: local

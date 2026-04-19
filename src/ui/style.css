@@ -1,0 +1,225 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Drone Spatial QA Dashboard — Styles
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --color-bg:         #0d1117;
+  --color-surface:    #161b22;
+  --color-border:     #30363d;
+  --color-accent:     #58a6ff;
+  --color-danger:     #f85149;
+  --color-warning:    #d29922;
+  --color-success:    #3fb950;
+  --color-muted:      #8b949e;
+  --color-text:       #e6edf3;
+  --color-text-dim:   #c9d1d9;
+  --font-mono:        'JetBrains Mono', 'Fira Code', monospace;
+  --font-ui:          'Inter', 'Segoe UI', system-ui, sans-serif;
+  --header-height:    56px;
+  --footer-height:    36px;
+  --sidebar-width:    280px;
+  --radius:           8px;
+  --transition:       0.2s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: var(--font-ui);
+  background: var(--color-bg);
+  color: var(--color-text);
+  overflow: hidden;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────────── */
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon { font-size: 22px; }
+.brand-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.5px;
+}
+.brand-sub {
+  font-size: 12px;
+  color: var(--color-muted);
+  border-left: 1px solid var(--color-border);
+  padding-left: 10px;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.separator { color: var(--color-border); }
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--color-muted);
+  transition: background var(--transition);
+}
+.status-dot.online  { background: var(--color-success); box-shadow: 0 0 6px var(--color-success); }
+.status-dot.warning { background: var(--color-warning); box-shadow: 0 0 6px var(--color-warning); }
+.status-dot.offline { background: var(--color-danger);  box-shadow: 0 0 6px var(--color-danger); }
+
+/* ─── Geofence Alert ──────────────────────────────────────────────────────────── */
+.geofence-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(248, 81, 73, 0.15);
+  border-bottom: 1px solid var(--color-danger);
+  color: #ff8984;
+  font-size: 14px;
+  font-weight: 600;
+  transition: opacity var(--transition), transform var(--transition);
+  z-index: 999;
+  position: relative;
+}
+.geofence-alert.hidden {
+  display: none;
+}
+.alert-icon { font-size: 18px; animation: pulse 1.5s infinite; }
+.alert-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #ff8984;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background var(--transition);
+}
+.alert-dismiss:hover { background: rgba(248, 81, 73, 0.2); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ─── Main Layout ─────────────────────────────────────────────────────────────── */
+.dashboard-main {
+  display: flex;
+  height: calc(100vh - var(--header-height) - var(--footer-height) - 2px);
+}
+
+/* ─── Sidebar ──────────────────────────────────────────────────────────────────── */
+.drone-sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 16px 0;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-muted);
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 8px;
+}
+
+.drone-list { list-style: none; }
+
+.drone-card {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.drone-card:hover { background: rgba(88, 166, 255, 0.05); }
+.drone-card.breached { border-left: 3px solid var(--color-danger); }
+
+.drone-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.drone-id {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+.drone-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--color-success);
+  font-weight: 600;
+}
+.drone-badge.danger {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--color-danger);
+}
+
+.drone-meta {
+  font-size: 11px;
+  color: var(--color-muted);
+  line-height: 1.7;
+}
+.drone-meta span { display: block; }
+.drone-meta .value {
+  font-family: var(--font-mono);
+  color: var(--color-text-dim);
+}
+
+/* ─── Map ──────────────────────────────────────────────────────────────────────── */
+.map-container {
+  flex: 1;
+  background: #1c2333;
+}
+
+/* ─── Footer ───────────────────────────────────────────────────────────────────── */
+.dashboard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--footer-height);
+  padding: 0 16px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+/* ─── Leaflet Overrides ─────────────────────────────────────────────────────────── */
+.leaflet-tile-pane { filter: brightness(0.7) contrast(1.1) saturate(0.8); }
+.leaflet-popup-content-wrapper {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius) !important;
+}
+.leaflet-popup-tip { background: var(--color-surface) !important; }

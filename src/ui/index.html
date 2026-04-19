@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drone Spatial QA — Live Fleet Dashboard</title>
+  <meta name="description" content="Real-time drone delivery fleet tracking map with geofence monitoring." />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ─── Header ──────────────────────────────────────────────────────────────── -->
+  <header class="dashboard-header">
+    <div class="header-brand">
+      <span class="brand-icon">✈</span>
+      <span class="brand-name">Drone-Spatial-QA</span>
+      <span class="brand-sub">Live Fleet Dashboard</span>
+    </div>
+    <div class="header-status">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="connection-status">Connecting...</span>
+      <span class="separator">|</span>
+      <span id="drone-count">0 drones active</span>
+    </div>
+  </header>
+
+  <!-- ─── Geofence Alert Banner ─────────────────────────────────────────────── -->
+  <div
+    class="geofence-alert hidden"
+    data-testid="geofence-alert"
+    id="geofence-alert"
+    role="alert"
+    aria-live="assertive"
+  >
+    <span class="alert-icon">⚠</span>
+    <span id="geofence-alert-message">GEOFENCE BREACH DETECTED</span>
+    <button class="alert-dismiss" onclick="dismissAlert()">✕</button>
+  </div>
+
+  <!-- ─── Main Layout ──────────────────────────────────────────────────────── -->
+  <main class="dashboard-main">
+    <!-- Sidebar: drone list -->
+    <aside class="drone-sidebar">
+      <h2 class="sidebar-title">Fleet Status</h2>
+      <ul id="drone-list" class="drone-list" aria-label="Active drones"></ul>
+    </aside>
+
+    <!-- Leaflet Map -->
+    <div id="map" class="map-container" aria-label="Drone fleet map"></div>
+  </main>
+
+  <!-- ─── Footer ──────────────────────────────────────────────────────────────── -->
+  <footer class="dashboard-footer">
+    <span>Drone-Spatial-QA-Framework</span>
+    <span>PostGIS + Turf.js + Playwright</span>
+    <span id="last-updated">Last updated: —</span>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
