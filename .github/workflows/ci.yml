@@ -2,9 +2,10 @@ name: Drone-Spatial-QA Framework CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main]
+    branches: [main, master]
+  workflow_dispatch:   # ← enables manual "Run workflow" button on GitHub UI
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,64 +33,81 @@ jobs:
           --health-retries 10
 
     env:
-      DB_HOST:                 localhost
-      DB_PORT:                 5432
-      DB_NAME:                 dronedb
-      DB_USER:                 postgres
-      DB_PASSWORD:             postgres
-      API_BASE_URL:            http://localhost:3001
-      UI_BASE_URL:             http://localhost:8080
+      DB_HOST:                   localhost
+      DB_PORT:                   5432
+      DB_NAME:                   dronedb
+      DB_USER:                   postgres
+      DB_PASSWORD:               postgres
+      API_BASE_URL:              http://localhost:3001
+      UI_BASE_URL:               http://localhost:8080
       MAX_PATH_DEVIATION_METERS: 5
-      NODE_ENV:                test
+      NODE_ENV:                  test
 
     steps:
+      # ── 1. Source ────────────────────────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ── 2. Node.js ──────────────────────────────────────────────────────────
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      # ── 3. Dependencies ──────────────────────────────────────────────────────
+      - name: Install npm dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
+      - name: Install Playwright browsers (Chromium + Firefox)
         run: npx playwright install chromium firefox --with-deps
 
+      # ── 4. Environment ───────────────────────────────────────────────────────
+      - name: Copy env file
+        run: cp .env.example .env
+
+      # ── 5. Database ───────────────────────────────────────────────────────────
       - name: Initialise PostGIS schema
         run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in $(seq 1 20); do
+            PGPASSWORD=postgres psql -h localhost -U postgres -d dronedb -c "SELECT 1;" && break
+            echo "  Retry $i/20..."
+            sleep 3
+          done
           PGPASSWORD=postgres psql -h localhost -U postgres -d dronedb -f db/init.sql
-        timeout-minutes: 2
+          echo "✅ PostGIS schema initialised"
 
+      # ── 6. Express API ────────────────────────────────────────────────────────
       - name: Start Express API server
         run: |
-          npx ts-node --project tsconfig.json src/api/server.ts &
-          echo "API_PID=$!" >> $GITHUB_ENV
-          # Wait for API health check
-          for i in $(seq 1 15); do
-            curl -sf http://localhost:3001/health && echo "API ready" && break
-            echo "Waiting for API... ($i/15)"
-            sleep 2
+          nohup npx ts-node --project tsconfig.json src/api/server.ts > /tmp/api.log 2>&1 &
+          echo $! > /tmp/api.pid
+          echo "Waiting for API health check..."
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:3001/health && echo "✅ API is ready" && break
+            echo "  Waiting... ($i/20)"
+            sleep 3
           done
-        timeout-minutes: 2
 
+      # ── 7. Nginx UI ───────────────────────────────────────────────────────────
       - name: Start Nginx UI server
         run: |
           docker run -d \
             --name drone_ui \
+            --add-host=host.docker.internal:host-gateway \
             -p 8080:80 \
             -v ${{ github.workspace }}/src/ui:/usr/share/nginx/html:ro \
             -v ${{ github.workspace }}/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
             nginx:alpine
-          sleep 3
-          curl -sf http://localhost:8080/health || echo "UI health check skipped"
-        timeout-minutes: 2
+          sleep 5
+          curl -sf http://localhost:8080/ && echo "✅ UI is ready" || echo "UI health check skipped"
 
-      - name: Run Playwright tests
+      # ── 8. Tests ──────────────────────────────────────────────────────────────
+      - name: Run Playwright test suite
         run: npx playwright test --reporter=list,allure-playwright
 
+      # ── 9. Artifacts ──────────────────────────────────────────────────────────
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,8 +116,8 @@ jobs:
           path: allure-results/
           retention-days: 30
 
-      - name: Upload Playwright report
-        if: failure()
+      - name: Upload Playwright HTML report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
@@ -114,8 +132,13 @@ jobs:
           path: test-results/
           retention-days: 7
 
-      - name: Cleanup
+      - name: Show API logs (on failure)
+        if: failure()
+        run: cat /tmp/api.log || echo "No API logs found"
+
+      # ── 10. Cleanup ───────────────────────────────────────────────────────────
+      - name: Cleanup services
         if: always()
         run: |
           docker stop drone_ui 2>/dev/null || true
-          kill $API_PID 2>/dev/null || true
+          kill $(cat /tmp/api.pid 2>/dev/null) 2>/dev/null || true
