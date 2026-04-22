@@ -39,14 +39,23 @@ const ACTUAL_PATH_WITHIN_TOLERANCE: Array<[number, number]> = [
   [40.75403, -73.97797],  // +3 m deviation
 ];
 
-// Actual path with a significant detour at waypoint 3 (~20 m off)
-// Offset of 0.0002° ≈ 20 m — used for negative assertion
+// Actual path with a deliberate PERPENDICULAR detour at waypoint 3.
+//
+// Why the original coords failed:
+// [40.75118, -73.98180] was a *parallel* shift along the NE-heading path.
+// turf.nearestPointOnLine found a point on an adjacent segment only ~4 m away,
+// so maxDeviation came in under the 5 m threshold — a false pass.
+//
+// Fix: move WP3 WESTWARD (≈ perpendicular to the NE path direction).
+// [40.75103, -73.98330] is 0.00130° west of planned WP3 [40.7510, -73.9820].
+// Vector projection confirms ~79 m perpendicular distance to the linestring.
+// 0.00130° × 84,000 m/° (at lat 40.75°) ≈ 109 m raw; ~79 m perpendicular.
 const ACTUAL_PATH_EXCEEDS_TOLERANCE: Array<[number, number]> = [
-  [40.74842, -73.98568],  // OK
-  [40.74953, -73.98397],  // OK
-  [40.75118, -73.98180],  // ~20 m off — significant detour
-  [40.75253, -73.97997],  // OK
-  [40.75403, -73.97797],  // OK
+  [40.74842, -73.98568],  // WP1: OK (~3 m)
+  [40.74953, -73.98397],  // WP2: OK (~3 m)
+  [40.75103, -73.98330],  // WP3: ~79 m WEST of planned — clear perpendicular breach
+  [40.75253, -73.97997],  // WP4: OK
+  [40.75403, -73.97797],  // WP5: OK
 ];
 
 test.describe('Path Deviation Validation', () => {
