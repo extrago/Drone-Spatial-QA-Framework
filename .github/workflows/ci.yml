@@ -90,19 +90,22 @@ jobs:
             sleep 3
           done
 
-      # ── 7. Nginx UI ───────────────────────────────────────────────────────────
-      # Uses --network host so nginx can reach Express API at 127.0.0.1:3001.
-      # nginx.ci.conf proxies /api/ to 127.0.0.1:3001 (not 'api:3001' Docker hostname).
-      - name: Start Nginx UI server
+      # ── 7. UI Static File Server ──────────────────────────────────────────────
+      # Serve the Leaflet UI with Python's built-in http.server — zero Docker
+      # networking complexity. The browser (Playwright) fetches /api/ which is
+      # rewritten in the served app.js to call the API at localhost:3001 directly.
+      - name: Patch app.js API base for CI (direct to Express, no nginx proxy)
         run: |
-          docker run -d \
-            --name drone_ui \
-            --network host \
-            -v ${{ github.workspace }}/src/ui:/usr/share/nginx/html:ro \
-            -v ${{ github.workspace }}/nginx/nginx.ci.conf:/etc/nginx/conf.d/default.conf:ro \
-            nginx:alpine
-          sleep 5
-          curl -sf http://localhost:8080/ && echo "✅ UI is ready" || echo "UI health check skipped"
+          sed -i "s|const API_BASE.*=.*'/api';|const API_BASE = 'http://localhost:3001';|g" src/ui/app.js
+          echo "✅ app.js API_BASE patched"
+          grep "API_BASE" src/ui/app.js | head -3
+
+      - name: Start UI static file server (Python http.server)
+        run: |
+          cd src/ui && nohup python3 -m http.server 8080 > /tmp/ui.log 2>&1 &
+          echo $! > /tmp/ui.pid
+          sleep 3
+          curl -sf http://localhost:8080/ && echo "✅ UI is ready" || (cat /tmp/ui.log && exit 1)
 
       # ── 8. Tests ──────────────────────────────────────────────────────────────
       - name: Run Playwright test suite
@@ -133,13 +136,16 @@ jobs:
           path: test-results/
           retention-days: 7
 
-      - name: Show API logs (on failure)
+
+      - name: Show API + UI logs (on failure)
         if: failure()
-        run: cat /tmp/api.log || echo "No API logs found"
+        run: |
+          echo "=== API LOG ===" && cat /tmp/api.log || echo "No API log"
+          echo "=== UI LOG ===" && cat /tmp/ui.log || echo "No UI log"
 
       # ── 10. Cleanup ───────────────────────────────────────────────────────────
       - name: Cleanup services
         if: always()
         run: |
-          docker stop drone_ui 2>/dev/null || true
           kill $(cat /tmp/api.pid 2>/dev/null) 2>/dev/null || true
+          kill $(cat /tmp/ui.pid  2>/dev/null) 2>/dev/null || true
