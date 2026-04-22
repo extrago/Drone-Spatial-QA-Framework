@@ -5,8 +5,8 @@ import { logger } from '../logger';
 const router = Router();
 
 // ─── GET /drones ──────────────────────────────────────────────────────────────
-// Returns all active drones with their latest telemetry position.
-// Uses a LATERAL JOIN so we only hit the telemetry table once per drone.
+// Returns all active drones with their latest telemetry position AND a live
+// PostGIS ST_Within geofence check so the UI can show breach alerts.
 router.get('/', async (_req: Request, res: Response) => {
   const pool = getPool();
 
@@ -21,8 +21,11 @@ router.get('/', async (_req: Request, res: Response) => {
        latest.longitude,
        latest.altitude,
        latest.battery_pct,
-       latest.recorded_at   AS last_seen,
-       latest.position_geojson
+       latest.recorded_at        AS last_seen,
+       latest.position_geojson,
+       -- Live PostGIS geofence check — ST_Within against active zone
+       COALESCE(geo.inside_geofence, TRUE) AS inside_geofence,
+       NOT COALESCE(geo.inside_geofence, TRUE) AS geofence_alert
      FROM drones d
      LEFT JOIN LATERAL (
        SELECT
@@ -31,12 +34,19 @@ router.get('/', async (_req: Request, res: Response) => {
          altitude,
          battery_pct,
          recorded_at,
-         ST_AsGeoJSON(position)    AS position_geojson
+         ST_AsGeoJSON(position)    AS position_geojson,
+         position                  AS raw_position
        FROM telemetry_logs
        WHERE drone_id = d.drone_id
        ORDER BY recorded_at DESC
        LIMIT 1
      ) latest ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT ST_Within(latest.raw_position, gz.boundary) AS inside_geofence
+       FROM geofence_zones gz
+       WHERE gz.is_active = TRUE
+       LIMIT 1
+     ) geo ON latest.raw_position IS NOT NULL
      WHERE d.status = 'active'
      ORDER BY d.drone_id`
   );
@@ -51,6 +61,7 @@ router.get('/', async (_req: Request, res: Response) => {
     })),
   });
 });
+
 
 // ─── GET /drones/:droneId ───────────────────────────────────────────────────
 router.get('/:droneId', async (req: Request, res: Response) => {
