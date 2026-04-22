@@ -262,3 +262,7 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`):
 5. Executes the full Playwright test suite
 6. Uploads Allure results as a persistent artifact (30-day retention)
 7. Uploads traces, screenshots, and videos on failure for RCA
+
+---
+
+> CREATED BY **Basem Abdelwahab**
